@@ -1,13 +1,13 @@
-from keras.applications.inception_v3 import InceptionV3
-from keras.preprocessing.image import ImageDataGenerator
-from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D
+from tensorflow.keras.applications.inception_v3 import InceptionV3
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 import os
 from os.path import join
 
 img_height, img_width = 229, 229
 batch_size = 32
-epochs = 3
+epochs = 100
 
 
 def train_model(train_dir, val_dir, results_dir):

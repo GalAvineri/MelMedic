@@ -6,6 +6,9 @@ import json
 import shutil
 import argparse
 import multiprocessing
+from tqdm import tqdm
+from itertools import repeat
+from auxiliries.multiprocessing import imap_wrapper
 
 
 def filter_invalid_images(imgs_dir, dscs_dir, inv_imgs_dir, inv_dscs_dir, num_processes):
@@ -59,7 +62,9 @@ def filter_invalid_images(imgs_dir, dscs_dir, inv_imgs_dir, inv_dscs_dir, num_pr
             dst_paths += [join(inv_imgs_dir, img_name), join(inv_dscs_dir, dsc_fname)]
 
     # Move the invalid descriptions and images to the filtered directories
-    multiprocessing.Pool(processes=num_processes).starmap(shutil.move, zip(src_paths, dst_paths))
+    p = multiprocessing.Pool(processes=num_processes)
+    list(tqdm(p.imap(imap_wrapper, zip(repeat(shutil.move), src_paths, dst_paths)),
+              total=len(src_paths), desc='Filtering invalid images'))
 
 
 def sort_images_into_class_and_learning_suites(images_dir, descs_dir, out_dir,
@@ -137,8 +142,7 @@ def sort_images_into_classes(imgs_dir, img_fnames, labels, out_dir, num_processe
             raise ValueError("The image {0} does not exist in {1}".format(image_name, imgs_dir))
 
     # Create a processes poll
-    pool = multiprocessing.Pool(processes=num_processes
-                                )
+    pool = multiprocessing.Pool(processes=num_processes)
     # Sort the image names into their classes by their corresponding labels:
     classes, names_sorted = sort_elements_into_classes(img_fnames, labels)
     # Create a directory for each class and copy all class images into it
@@ -149,7 +153,8 @@ def sort_images_into_classes(imgs_dir, img_fnames, labels, out_dir, num_processe
         # Copy the images from their src to dst
         src_image_paths = [join(imgs_dir, image_name) for image_name in img_fnames]
         dst_image_paths = [join(class_dir, image_name) for image_name in img_fnames]
-        pool.starmap(shutil.copy, zip(src_image_paths, dst_image_paths))
+        list(tqdm(pool.imap(imap_wrapper, zip(repeat(shutil.copy), src_image_paths, dst_image_paths)),
+                  total=len(src_image_paths), desc='Assembling images of class {}'.format(klass)))
 
 
 def parse_names_labels(desc_path):
@@ -246,7 +251,8 @@ def sort_images_into_learning_suites(src_dir, out_dir, train_port, val_port, num
             shutil.move(image_path, join(out_dir, 'train', klass))
 
     # Move all the images marked earlier
-    pool.starmap(shutil.move, zip(sources, dests))
+    list(tqdm(pool.imap(imap_wrapper, zip(repeat(shutil.move), sources, dests)),
+              total=len(sources), desc='Splitting data into suites'))
 
 
 if __name__ == '__main__':
