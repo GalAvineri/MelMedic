@@ -1,5 +1,6 @@
 from data.dataset import Dataset
 from auxilleries import IO
+from metrics import Precision, Recall, F1
 
 from tensorflow import keras
 from tensorflow.keras.applications.inception_v3 import InceptionV3
@@ -8,13 +9,10 @@ from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 from sklearn.metrics import classification_report
 from sklearn.utils import class_weight
+
 import numpy as np
 import os
 from os.path import join
-
-# # Count number of train and val samples
-# train_num_samples = sum([len(files) for r, d, files in os.walk(train_dir)])
-# val_num_samples = sum([len(files) for r, d, files in os.walk(val_dir)])
 
 # Create the base pre-trained model
 base_model = InceptionV3(weights='imagenet', include_top=False)
@@ -28,7 +26,11 @@ model = Model(inputs=base_model.input, outputs=predictions)
 for layer in base_model.layers:
     layer.trainable = False
 
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.compile(optimizer='adam', loss='categorical_crossentropy',
+              metrics=['accuracy',
+                       Precision(class_ind=0, name='p0'), Recall(class_ind=0, name='r0'), F1(class_ind=0, name='f1_0'),
+                       Precision(class_ind=1, name='p1'), Recall(class_ind=1, name='r1'), F1(class_ind=1, name='f1_1')
+                       ])
 
 # data
 batch_size = 32
@@ -37,9 +39,10 @@ train = Dataset(join(data_dir, 'train'))
 val = Dataset(join(data_dir, 'val'))
 test = Dataset(join(data_dir, 'test'))
 
-train_iter = train.dataset.shuffle(1000).batch(batch_size).repeat().prefetch(batch_size)
-val_iter = val.dataset.shuffle(1000).batch(batch_size).repeat().prefetch(batch_size)
-test_iter = test.dataset.batch(batch_size).prefetch(batch_size)
+train_iter = train.dataset.shuffle(train.size).map(Dataset.parse_sample, num_parallel_calls=4) \
+    .batch(batch_size).repeat().prefetch(batch_size)
+val_iter = val.dataset.map(Dataset.parse_sample, num_parallel_calls=4).batch(batch_size).repeat().prefetch(batch_size)
+test_iter = test.dataset.map(Dataset.parse_sample, num_parallel_calls=4).batch(batch_size).prefetch(batch_size)
 
 # Training configurations
 epochs = 100
