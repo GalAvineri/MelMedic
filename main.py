@@ -26,11 +26,9 @@ model = Model(inputs=base_model.input, outputs=predictions)
 for layer in base_model.layers:
     layer.trainable = False
 
-model.compile(optimizer='adam', loss='categorical_crossentropy',
-              metrics=['accuracy',
-                       Precision(class_ind=0, name='p0'), Recall(class_ind=0, name='r0'), F1(class_ind=0, name='f1_0'),
-                       Precision(class_ind=1, name='p1'), Recall(class_ind=1, name='r1'), F1(class_ind=1, name='f1_1')
-                       ])
+metrics = [Precision(class_ind=0, name='p0'), Recall(class_ind=0, name='r0'), F1(class_ind=0, name='f1_0'),
+                       Precision(class_ind=1, name='p1'), Recall(class_ind=1, name='r1'), F1(class_ind=1, name='f1_1')]
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'] + metrics)
 
 # data
 batch_size = 32
@@ -50,8 +48,8 @@ class_weights = class_weight.compute_class_weight('balanced', np.unique(train.la
 
 # Results configutation
 results_dir = join(os.pardir, 'Results')
-model_file = join(results_dir, 'best_model')
-callbacks = [EarlyStopping(patience=10), ReduceLROnPlateau(), ModelCheckpoint(model_file, save_best_only=True)]
+weights_file = join(results_dir, 'best_model_weights')
+callbacks = [EarlyStopping(patience=10), ReduceLROnPlateau(), ModelCheckpoint(weights_file, save_best_only=True)]
 IO.create_if_none(results_dir)
 
 # Train the model
@@ -61,8 +59,8 @@ model.fit(train_iter, validation_data=val_iter, epochs=epochs,
           callbacks=callbacks
           )
 
-# Load best model
-model = keras.models.load_model(model_file)
+# Load best model weights
+model.load_weights(weights_file)
 # Evaluate the model
 preds = model.predict(test_iter, steps=test.size // batch_size)
 preds = np.argmax(preds, axis=1)
